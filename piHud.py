@@ -6,19 +6,30 @@ import json
 import time
 import threading
 from PIL import Image, ImageDraw, ImageFont
+import logging
+
+logging.basicConfig(level=logging.DEBUG,format='[%(asctime)s][%(levelname)s] (%(threadName)-10s) %(message)s',)
 
 ticks = 0
 btcPrice = 0
 tindieOrders = []
+weather = {}
 
 def GetBTCPrice():
+    logging.debug('Getting BTC Price')
+
+    global btcPrice
+
     #kraken API URL, don't exceed more than 1 call/second
-    bitcoin_apiUrl = "https://api.kraken.com/0/public/Ticker"
-    btcResponse = requests.get(bitcoin_apiUrl,{'pair':'BTCUSD'})
+    bitcoinApiUrl = "https://api.kraken.com/0/public/Ticker"
+    btcResponse = requests.get(bitcoinApiUrl,{'pair':'BTCUSD'})
     btcResponseJson = btcResponse.json()
-    return float(btcResponseJson['result']['XXBTZUSD']['c'][0])
+    btcPrice = float(btcResponseJson['result']['XXBTZUSD']['c'][0])
+
+    logging.debug('Done Getting BTC Price')
 
 def GetTindieOrders():
+    logging.debug("Getting Tindie Orders")
         # ORDERS JSON FORMAT
         # 'company_title': '',
         # 'date': '2021-03-02T01:41:54.108556',
@@ -60,7 +71,7 @@ def GetTindieOrders():
         # 'total_tindiefee': 1.75,
         # 'tracking_code': None,
         # 'tracking_url': ''
-
+    global tindieOrders
 
     #API Key info for tindie account
     tindieApiUser = "jivemasta"
@@ -88,15 +99,51 @@ def GetTindieOrders():
             tindieApiUrl = tindieJSON['meta']['next']
         else:
             moreOrders = False
-    #return the entire list of orders    
-    return orderList
+    #return the entire list of orders 
+    tindieOrders = orderList
+
+    logging.debug("Done Getting Tindie Orders")
+
+def GetWeather():
+    logging.debug('Getting Weather')
+
+    #for JSON structure
+    #https://openweathermap.org/api/one-call-api
+
+    global weather
+
+    #lat and lon for the house
+    lat = 41.060488965115056
+    lon = -83.7288217363699
+    units = 'imperial'
+
+    #set up API URL
+    apiKey = '4a2cf1128f138c25aa3d062c068700ad'
+    weatherApiUrl = f'https://api.openweathermap.org/data/2.5/onecall?lat={lat}&lon={lon}&units={units}&appid={apiKey}'
+
+    #get weather as a JSON object
+    weatherResponse = requests.get(weatherApiUrl)
+    weather = weatherResponse.json()
+
+    logging.debug('Done Getting Weather')
+
+
 
 def UpdateData():
     global btcPrice
     global tindieOrders
 
-    btcPrice = GetBTCPrice()
-    tindieOrders = GetTindieOrders()
+    btcThread = threading.Thread(target=GetBTCPrice)
+    tindieThread = threading.Thread(target=GetTindieOrders)
+    weatherThread = threading.Thread(target=GetWeather)
+
+    btcThread.start()
+    tindieThread.start()
+    weatherThread.start()
+
+    btcThread.join()
+    tindieThread.join()
+    weatherThread.join()
 
 def RenderImage():
     global btcPrice
@@ -109,11 +156,22 @@ def RenderImage():
     #display is 400x300 with 3 colors white, red, and black
     out = Image.new('RGB',(400,300),(255,255,255))
     #load default font
-    font = ImageFont.load_default()
+    font = ImageFont.truetype('arial.ttf',size=14)
     #create the drawing object
     draw = ImageDraw.Draw(out)
 
-    draw.multiline_text((0,0),f'Bitcoin: {btcPrice:.2f}',font=font,fill=black)
+    #draw bitcoin price
+    draw.text((0,0),f'Bitcoin: {btcPrice:.2f}',fill=black,font=font)
+
+    #draw weather
+    temp = weather['current']['temp']
+    draw.text((0,30),f'Temp: {temp}',fill=black,font=font)
+
+    unshippedOrders = 0
+    for order in tindieOrders:
+        if order['shipped'] == False:
+            unshippedOrders +=1
+    draw.text((0,60),f'Unshipped Orders: {unshippedOrders}',fill=black,font=font)
 
     out.show()
 
