@@ -101,9 +101,9 @@ def UpdateData():
 def RenderImage():
     global btcPrice
 
-    #white = (255,255,255)
+    white = (255,255,255)
     black = (0,0,0)
-    #red = (255,0,0)
+    red = (255,0,0)
 
     #create a new image file to put on the display
     #display is 400x300 with 3 colors white, red, and black
