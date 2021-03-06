@@ -1,3 +1,6 @@
+#piHud Main file
+#this will display bitcoin price, weather, and tindie orders on a eInk display on a raspberry pi
+
 import requests
 import json
 import time
