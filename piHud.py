@@ -1,12 +1,20 @@
 #piHud Main file
 #this will display bitcoin price, weather, and tindie orders on a eInk display on a raspberry pi
 
+import os
+import platform
 import requests
 import json
 import time
 import threading
 from PIL import Image, ImageDraw, ImageFont
 import logging
+
+linux = platform.system() != "Windows"
+
+if linux:
+    from inky import InkyWHAT
+
 
 logging.basicConfig(level=logging.DEBUG,format='[%(asctime)s][%(levelname)s] (%(threadName)-10s) %(message)s',)
 
@@ -18,6 +26,9 @@ tindieApiUser = ''
 tindieApiKey = ''
 weatherApiKey = ''
 
+if linux:
+    inkyBoard  = InkyWHAT('red')
+
 def GetSettingsFile():
     #open settings file, it's just a file with a json object with api key data
 
@@ -25,7 +36,9 @@ def GetSettingsFile():
     global tindieApiKey
     global weatherApiKey
 
-    f = open("config.cfg", "r")
+    loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+
+    f = open(os.path.join(loc,"config.cfg"), "r")
     fileStr = f.read()
     settings = json.loads(fileStr)
 
@@ -82,7 +95,7 @@ def GetTindieOrders():
             tindieApiUrl = tindieJSON['meta']['next']
         else:
             moreOrders = False
-    #return the entire list of orders 
+    #return the entire list of orders
     tindieOrders = orderList
 
     logging.debug("Done Getting Tindie Orders")
@@ -90,7 +103,7 @@ def GetTindieOrders():
 def GetWeather():
     #for JSON structure
     #https://openweathermap.org/api/one-call-api
-    
+
     logging.debug('Getting Weather')
 
     global weather
@@ -106,6 +119,7 @@ def GetWeather():
 
     #get weather as a JSON object
     weatherResponse = requests.get(weatherApiUrl)
+
     weather = weatherResponse.json()
 
     logging.debug('Done Getting Weather')
@@ -126,7 +140,7 @@ def UpdateData():
     tindieThread.join()
     weatherThread.join()
 
-def RenderImage():
+def RenderImageInky():
     global btcPrice
 
     white = (255,255,255)
@@ -135,10 +149,51 @@ def RenderImage():
 
     #create a new image file to put on the display
     #display is 400x300 with 3 colors white, red, and black
-    out = Image.new('RGB',(800,600),(255,255,255))
+    out = Image.new('P',(400,300))
     #load default font
-    fontLarge = ImageFont.truetype('arial.ttf',size=80)
-    fontSmall = ImageFont.truetype('arial.ttf',size=40)
+    fontLarge = ImageFont.truetype('arial.ttf',size=40)
+    fontSmall = ImageFont.truetype('arial.ttf',size=20)
+    #create the drawing object
+    draw = ImageDraw.Draw(out)
+
+    #get bitcoin data
+    btcOpen = float(btcPrice['open'])
+    btcClose = float(btcPrice['close'])
+    btcHigh = float(btcPrice['high'])
+    btcLow = float(btcPrice['low'])
+
+    #draw bitcoin data
+    #bitcoin price will be red if current price is lower than the open, and black if higher than open
+    draw.text((0,0),f'{btcClose:.2f}',fill=inkyBoard.BLACK if btcClose > btcOpen else inkyBoard.RED,font=fontLarge)
+    draw.text((0,40),f'Open:{btcOpen:.2f}',fill=inkyBoard.BLACK,font=fontSmall)
+    draw.text((0,60),f'High:{btcHigh:.2f}',fill=inkyBoard.BLACK,font=fontSmall)
+    draw.text((0,80),f'Low:{btcLow:.2f}',fill=inkyBoard.BLACK,font=fontSmall)
+
+    #draw weather
+    temp = weather['current']['temp']
+    #draw.text((0,30),f'Temp: {temp}',fill=black,font=font)
+
+    unshippedOrders = 0
+    for order in tindieOrders:
+        if order['shipped'] == False:
+            unshippedOrders +=1
+    #draw.text((0,60),f'Unshipped Orders: {unshippedOrders}',fill=black,font=font)
+
+
+
+def RenderImage():
+    global btcPrice
+
+    white = (255,255,255) if not linux else inkyBoard.WHITE
+    black = (0,0,0) if not linux else inkyBoard.BLACK
+    red = (255,0,0) if not linux else inkyBoard.RED
+
+    #create a new image file to put on the display
+    #display is 400x300 with 3 colors white, red, and black
+    out = Image.new('P',(400,300))
+    #load default font
+    fontLarge = ImageFont.truetype('arial.ttf',size=40)
+    fontSmall = ImageFont.truetype('arial.ttf',size=20)
     #create the drawing object
     draw = ImageDraw.Draw(out)
 
@@ -151,9 +206,9 @@ def RenderImage():
     #draw bitcoin data
     #bitcoin price will be red if current price is lower than the open, and black if higher than open
     draw.text((0,0),f'{btcClose:.2f}',fill=black if btcClose > btcOpen else red,font=fontLarge)
-    draw.text((0,80),f'Open:{btcOpen:.2f}',fill=black,font=fontSmall)
-    draw.text((0,120),f'High:{btcHigh:.2f}',fill=black,font=fontSmall)
-    draw.text((0,160),f'Low:{btcLow:.2f}',fill=black,font=fontSmall)
+    draw.text((0,40),f'Open:{btcOpen:.2f}',fill=black,font=fontSmall)
+    draw.text((0,60),f'High:{btcHigh:.2f}',fill=black,font=fontSmall)
+    draw.text((0,80),f'Low:{btcLow:.2f}',fill=black,font=fontSmall)
 
     #draw weather
     temp = weather['current']['temp']
@@ -165,7 +220,13 @@ def RenderImage():
             unshippedOrders +=1
     #draw.text((0,60),f'Unshipped Orders: {unshippedOrders}',fill=black,font=font)
 
-    out.show()
+    if not linux:
+        out.show()
+
+    if linux:
+        inkyBoard.set_image(out)
+        inkyBoard.show()
+
 
 #Start the actual program by getting settings, and entering the main loop
 GetSettingsFile()
