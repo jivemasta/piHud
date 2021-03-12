@@ -10,12 +10,15 @@ import threading
 from PIL import Image, ImageDraw, ImageFont
 import logging
 
+#check if we are running on linux so we can be cross platform friendly since inky library doesn't work on windows
+#on windows we just make a RGB image and output it
 linux = platform.system() != "Windows"
 
+#keep inky code behind if statements so that it will run on windows for development
 if linux:
     from inky import InkyWHAT
 
-
+#setup of debug logging
 logging.basicConfig(level=logging.DEBUG,format='[%(asctime)s][%(levelname)s] (%(threadName)-10s) %(message)s',)
 
 ticks = 0
@@ -36,8 +39,10 @@ def GetSettingsFile():
     global tindieApiKey
     global weatherApiKey
 
+    #get the config file from the same directory as the script file
     loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
+    #open the config file and read the private keys
     f = open(os.path.join(loc,"config.cfg"), "r")
     fileStr = f.read()
     settings = json.loads(fileStr)
@@ -140,57 +145,20 @@ def UpdateData():
     tindieThread.join()
     weatherThread.join()
 
-def RenderImageInky():
-    global btcPrice
-
-    white = (255,255,255)
-    black = (0,0,0)
-    red = (255,0,0)
-
-    #create a new image file to put on the display
-    #display is 400x300 with 3 colors white, red, and black
-    out = Image.new('P',(400,300))
-    #load default font
-    fontLarge = ImageFont.truetype('arial.ttf',size=40)
-    fontSmall = ImageFont.truetype('arial.ttf',size=20)
-    #create the drawing object
-    draw = ImageDraw.Draw(out)
-
-    #get bitcoin data
-    btcOpen = float(btcPrice['open'])
-    btcClose = float(btcPrice['close'])
-    btcHigh = float(btcPrice['high'])
-    btcLow = float(btcPrice['low'])
-
-    #draw bitcoin data
-    #bitcoin price will be red if current price is lower than the open, and black if higher than open
-    draw.text((0,0),f'{btcClose:.2f}',fill=inkyBoard.BLACK if btcClose > btcOpen else inkyBoard.RED,font=fontLarge)
-    draw.text((0,40),f'Open:{btcOpen:.2f}',fill=inkyBoard.BLACK,font=fontSmall)
-    draw.text((0,60),f'High:{btcHigh:.2f}',fill=inkyBoard.BLACK,font=fontSmall)
-    draw.text((0,80),f'Low:{btcLow:.2f}',fill=inkyBoard.BLACK,font=fontSmall)
-
-    #draw weather
-    temp = weather['current']['temp']
-    #draw.text((0,30),f'Temp: {temp}',fill=black,font=font)
-
-    unshippedOrders = 0
-    for order in tindieOrders:
-        if order['shipped'] == False:
-            unshippedOrders +=1
-    #draw.text((0,60),f'Unshipped Orders: {unshippedOrders}',fill=black,font=font)
-
-
-
 def RenderImage():
     global btcPrice
 
+    #set default colors on windows we use RGB, on linux we use the inky colors
     white = (255,255,255) if not linux else inkyBoard.WHITE
     black = (0,0,0) if not linux else inkyBoard.BLACK
     red = (255,0,0) if not linux else inkyBoard.RED
 
     #create a new image file to put on the display
     #display is 400x300 with 3 colors white, red, and black
-    out = Image.new('P',(400,300))
+    if linux:
+        out = Image.new('P',(400,300))
+    else:
+        out = Image.new('RGB',(400,300),(255,255,255))
     #load default font
     fontLarge = ImageFont.truetype('arial.ttf',size=40)
     fontSmall = ImageFont.truetype('arial.ttf',size=20)
@@ -227,7 +195,6 @@ def RenderImage():
         inkyBoard.set_image(out)
         inkyBoard.show()
 
-
 #Start the actual program by getting settings, and entering the main loop
 GetSettingsFile()
 
@@ -239,6 +206,5 @@ while(1):
     #create the image that will display on the eInk screen
     RenderImage()
 
-    #only update every 10 seconds, probably doesn't need to update this often
-    #could probably update every couple minutes
-    time.sleep(10)
+    #update at a set interval
+    time.sleep(60)
