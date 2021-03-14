@@ -23,6 +23,7 @@ logging.basicConfig(level=logging.DEBUG,format='[%(asctime)s][%(levelname)s] (%(
 
 ticks = 0
 btcPrice = {}
+ethPrice = {}
 tindieOrders = []
 weather = {}
 tindieApiUser = ''
@@ -51,22 +52,31 @@ def GetSettingsFile():
     tindieApiKey = settings['tindieApiKey']
     weatherApiKey = settings['weatherApiKey']
 
-def GetBTCPrice():
+def GetCryptoPrice():
     #get bitcoin price data from gemini API, can handle up to 1 call per second, but we won't update that fast
-    logging.debug('Getting BTC Price')
+    logging.debug('Getting Crypto Price')
 
     global btcPrice
+    global ethPrice
 
     #If we ever want to change which crypto to get. V2?
     symbol = 'BTCUSD'
 
     #get ticker data, gets data for the last 24 hours. Open, close, high, low. Close is most current price
-    bitcoinApiUrl = f"https://api.gemini.com/v2/ticker/{symbol}"
-    btcResponse = requests.get(bitcoinApiUrl)
-    btcResponseJson = btcResponse.json()
-    btcPrice = btcResponse.json()
+    cryptoApiUrl = f"https://api.gemini.com/v2/ticker/{symbol}"
+    cryptoResponse = requests.get(cryptoApiUrl)
+    cryptoResponseJson = cryptoResponse.json()
+    btcPrice = cryptoResponse.json()
 
-    logging.debug('Done Getting BTC Price')
+    symbol = 'ETHUSD'
+
+    cryptoApiUrl = f"https://api.gemini.com/v2/ticker/{symbol}"
+    cryptoResponse = requests.get(cryptoApiUrl)
+    cryptoResponseJson = cryptoResponse.json()
+    ethPrice = cryptoResponse.json()
+
+
+    logging.debug('Done Getting Crypto Price')
 
 def GetTindieOrders():
     logging.debug("Getting Tindie Orders")
@@ -133,25 +143,22 @@ def UpdateData():
     global btcPrice
     global tindieOrders
 
-    btcThread = threading.Thread(target=GetBTCPrice)
+    cryptoThread = threading.Thread(target=GetCryptoPrice)
     tindieThread = threading.Thread(target=GetTindieOrders)
     weatherThread = threading.Thread(target=GetWeather)
 
-    btcThread.start()
+    cryptoThread.start()
     tindieThread.start()
     weatherThread.start()
 
-    btcThread.join()
+    cryptoThread.join()
     tindieThread.join()
     weatherThread.join()
 
 def RenderImage():
     global btcPrice
-
-    #set default colors on windows we use RGB, on linux we use the inky colors
-    white = (255,255,255) if not linux else inkyBoard.WHITE
-    black = (0,0,0) if not linux else inkyBoard.BLACK
-    red = (255,0,0) if not linux else inkyBoard.RED
+    global ethPrice
+    global weather
 
     #create a new image file to put on the display
     #display is 400x300 with 3 colors white, red, and black
@@ -159,11 +166,25 @@ def RenderImage():
         out = Image.new('P',(400,300))
     else:
         out = Image.new('RGB',(400,300),(255,255,255))
-    #load default font
-    fontLarge = ImageFont.truetype('arial.ttf',size=40)
-    fontSmall = ImageFont.truetype('arial.ttf',size=20)
+
+    #load fonts
+    fontLarge = ImageFont.truetype('arial.ttf',size=32)
+    fontSmall = ImageFont.truetype('arial.ttf',size=16)
+
+    #set default colors on windows we use RGB, on linux we use the inky colors
+    white = (255,255,255) if not linux else inkyBoard.WHITE
+    black = (0,0,0) if not linux else inkyBoard.BLACK
+    red = (170,0,0) if not linux else inkyBoard.RED
+
+    #set line thickness
+    lineThickness = 2
     #create the drawing object
     draw = ImageDraw.Draw(out)
+
+    #draw framing lines
+    draw.line([(200,0),(200,80)],fill=black,width=lineThickness)
+    draw.line([(0,80),(400,80)],fill=black,width=lineThickness)
+    draw.line([(0,112),(400,112)],fill=black,width=lineThickness)
 
     #get bitcoin data
     btcOpen = float(btcPrice['open'])
@@ -171,26 +192,50 @@ def RenderImage():
     btcHigh = float(btcPrice['high'])
     btcLow = float(btcPrice['low'])
 
+    btcBox = { 'x':0, 'y':0, 'w':200, 'h':100}
+
     #draw bitcoin data
     #bitcoin price will be red if current price is lower than the open, and black if higher than open
-    draw.text((0,0),f'{btcClose:.2f}',fill=black if btcClose > btcOpen else red,font=fontLarge)
-    draw.text((0,40),f'Open:{btcOpen:.2f}',fill=black,font=fontSmall)
-    draw.text((0,60),f'High:{btcHigh:.2f}',fill=black,font=fontSmall)
-    draw.text((0,80),f'Low:{btcLow:.2f}',fill=black,font=fontSmall)
+    draw.text((32,0),f'{btcClose:.2f}',fill=black if btcClose > btcOpen else red,font=fontLarge)
+    draw.text((5,32),f'Open:{btcOpen:.2f}',fill=black,font=fontSmall)
+    draw.text((5,48),f'High:{btcHigh:.2f}',fill=black,font=fontSmall)
+    draw.text((5,64),f'Low:{btcLow:.2f}',fill=black,font=fontSmall)
+
+
+    #get ethereum data
+    ethOpen = float(ethPrice['open'])
+    ethClose = float(ethPrice['close'])
+    ethHigh = float(ethPrice['high'])
+    ethLow = float(ethPrice['low'])
+
+    #draw ethereum data
+    draw.text((241,0),f'{ethClose:.2f}',fill=black if ethClose > ethOpen else red,font=fontLarge)
+    draw.text((206,32),f'Open:{ethOpen:.2f}',fill=black,font=fontSmall)
+    draw.text((206,48),f'High:{ethHigh:.2f}',fill=black,font=fontSmall)
+    draw.text((206,64),f'Low:{ethLow:.2f}',fill=black,font=fontSmall)
 
     #draw weather
     temp = weather['current']['temp']
-    #draw.text((0,30),f'Temp: {temp}',fill=black,font=font)
+    condition = weather['current']['weather'][0]['description']
+    draw.text((0,80),f'Temp: {temp} | {condition}',fill=black,font=fontLarge)
 
     unshippedOrders = 0
+
     for order in tindieOrders:
+        itemcount = 0
         if order['shipped'] == False:
             unshippedOrders +=1
-    #draw.text((0,60),f'Unshipped Orders: {unshippedOrders}',fill=black,font=font)
+            country = order['shipping_country']
+            for item in order['items']:
+                itemcount+=1
+            draw.text((0,96+(unshippedOrders*16)),f'Ship {itemcount} item(s) to {country}',fill=black,font=fontSmall)
 
+    #show picture in windows photo viewer
     if not linux:
+        out = out.rotate(180)
         out.show()
 
+    #update inky display
     if linux:
         inkyBoard.set_image(out)
         inkyBoard.show()
