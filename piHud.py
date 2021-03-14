@@ -30,6 +30,9 @@ tindieApiUser = ''
 tindieApiKey = ''
 weatherApiKey = ''
 
+#get the config file from the same directory as the script file
+loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+
 if linux:
     inkyBoard  = InkyWHAT('red')
 
@@ -39,9 +42,6 @@ def GetSettingsFile():
     global tindieApiUser
     global tindieApiKey
     global weatherApiKey
-
-    #get the config file from the same directory as the script file
-    loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
     #open the config file and read the private keys
     f = open(os.path.join(loc,"config.cfg"), "r")
@@ -65,14 +65,12 @@ def GetCryptoPrice():
     #get ticker data, gets data for the last 24 hours. Open, close, high, low. Close is most current price
     cryptoApiUrl = f"https://api.gemini.com/v2/ticker/{symbol}"
     cryptoResponse = requests.get(cryptoApiUrl)
-    cryptoResponseJson = cryptoResponse.json()
     btcPrice = cryptoResponse.json()
 
     symbol = 'ETHUSD'
 
     cryptoApiUrl = f"https://api.gemini.com/v2/ticker/{symbol}"
     cryptoResponse = requests.get(cryptoApiUrl)
-    cryptoResponseJson = cryptoResponse.json()
     ethPrice = cryptoResponse.json()
 
 
@@ -192,8 +190,6 @@ def RenderImage():
     btcHigh = float(btcPrice['high'])
     btcLow = float(btcPrice['low'])
 
-    btcBox = { 'x':0, 'y':0, 'w':200, 'h':100}
-
     #draw bitcoin data
     #bitcoin price will be red if current price is lower than the open, and black if higher than open
     draw.text((32,0),f'{btcClose:.2f}',fill=black if btcClose > btcOpen else red,font=fontLarge)
@@ -201,6 +197,9 @@ def RenderImage():
     draw.text((5,48),f'High:{btcHigh:.2f}',fill=black,font=fontSmall)
     draw.text((5,64),f'Low:{btcLow:.2f}',fill=black,font=fontSmall)
 
+    #draw bitcoin logo
+    btcLogo = Image.open(os.path.join(loc, "img/bitcoin.png"))
+    out.paste(btcLogo,(0,0))
 
     #get ethereum data
     ethOpen = float(ethPrice['open'])
@@ -214,13 +213,17 @@ def RenderImage():
     draw.text((206,48),f'High:{ethHigh:.2f}',fill=black,font=fontSmall)
     draw.text((206,64),f'Low:{ethLow:.2f}',fill=black,font=fontSmall)
 
+    #draw eth logo
+    ethLogo = Image.open(os.path.join(loc, "img/eth.png"))
+    out.paste(ethLogo,(209,0))
+
     #draw weather
     temp = weather['current']['temp']
     condition = weather['current']['weather'][0]['description']
     draw.text((0,80),f'Temp: {temp} | {condition}',fill=black,font=fontLarge)
 
+    #get unshipped orders and print each one out
     unshippedOrders = 0
-
     for order in tindieOrders:
         itemcount = 0
         if order['shipped'] == False:
