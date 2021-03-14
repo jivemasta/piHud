@@ -232,11 +232,11 @@ def RenderImage():
 
     #show picture in windows photo viewer
     if not linux:
-        out = out.rotate(180)
         out.show()
 
     #update inky display
     if linux:
+        out = out.rotate(180)
         inkyBoard.set_image(out)
         inkyBoard.show()
 
