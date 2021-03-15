@@ -165,6 +165,8 @@ def RenderImage():
     # else:
     #     out = Image.new('RGB',(400,300),(255,255,255))
 
+    #create the output image
+    #set a palette to be 3 colors, white = 0, black = 1, red = 2
     out = Image.new('P',(400,300))
     out.putpalette((255, 255, 255, 0, 0, 0, 255, 0, 0) + (0, 0, 0) * 252)
 
@@ -173,9 +175,9 @@ def RenderImage():
     fontSmall = ImageFont.truetype('arial.ttf',size=16)
 
     #set default colors on windows we use RGB, on linux we use the inky colors
-    white = (255,255,255) if not linux else inkyBoard.WHITE
-    black = (0,0,0) if not linux else inkyBoard.BLACK
-    red = (255,0,0) if not linux else inkyBoard.RED
+    white = 0 if not linux else inkyBoard.WHITE
+    black = 1 if not linux else inkyBoard.BLACK
+    red = 2 if not linux else inkyBoard.RED
 
     #set line thickness
     lineThickness = 2
