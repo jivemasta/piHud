@@ -201,7 +201,7 @@ def RenderImage():
     draw.text((5,64),f'Low:{btcLow:.2f}',fill=black,font=fontSmall)
 
     #draw bitcoin logo
-    btcLogo = Image.open(os.path.join(loc, "img/bitcoin.png"))
+    btcLogo = Image.open(os.path.join(loc, "img/Bitcoin.png"))
     btcLogo = btcLogo.convert("RGB").quantize(palette=out)
     out.paste(btcLogo,(0,0))
 
