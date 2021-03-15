@@ -160,10 +160,12 @@ def RenderImage():
 
     #create a new image file to put on the display
     #display is 400x300 with 3 colors white, red, and black
-    if linux:
-        out = Image.new('P',(400,300))
-    else:
-        out = Image.new('RGB',(400,300),(255,255,255))
+    # if linux:
+    #     out = Image.new('P',(400,300))
+    # else:
+    #     out = Image.new('RGB',(400,300),(255,255,255))
+
+    out = Image.new('P',(400,300))
 
     #load fonts
     fontLarge = ImageFont.truetype('arial.ttf',size=32)
