@@ -166,6 +166,7 @@ def RenderImage():
     #     out = Image.new('RGB',(400,300),(255,255,255))
 
     out = Image.new('P',(400,300))
+    out.putpalette((255, 255, 255, 0, 0, 0, 255, 0, 0) + (0, 0, 0) * 252)
 
     #load fonts
     fontLarge = ImageFont.truetype('arial.ttf',size=32)
@@ -174,7 +175,7 @@ def RenderImage():
     #set default colors on windows we use RGB, on linux we use the inky colors
     white = (255,255,255) if not linux else inkyBoard.WHITE
     black = (0,0,0) if not linux else inkyBoard.BLACK
-    red = (170,0,0) if not linux else inkyBoard.RED
+    red = (255,0,0) if not linux else inkyBoard.RED
 
     #set line thickness
     lineThickness = 2
@@ -201,6 +202,7 @@ def RenderImage():
 
     #draw bitcoin logo
     btcLogo = Image.open(os.path.join(loc, "img/bitcoin.png"))
+    btcLogo = btcLogo.convert("RGB").quantize(palette=out)
     out.paste(btcLogo,(0,0))
 
     #get ethereum data
@@ -217,6 +219,7 @@ def RenderImage():
 
     #draw eth logo
     ethLogo = Image.open(os.path.join(loc, "img/eth.png"))
+    ethLogo = ethLogo.convert("RGB").quantize(palette=out)
     out.paste(ethLogo,(209,0))
 
     #draw weather
