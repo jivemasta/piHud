@@ -198,7 +198,7 @@ def RenderImage():
     draw.text((5,64),f'Low:{btcLow:.2f}',fill=black,font=fontSmall)
 
     #draw bitcoin logo
-    btcLogo = Image.open(os.path.join(loc, "img/bitcoin.png"))
+    btcLogo = Image.open(os.path.join(loc, "/img/bitcoin.png"))
     out.paste(btcLogo,(0,0))
 
     #get ethereum data
@@ -214,7 +214,7 @@ def RenderImage():
     draw.text((206,64),f'Low:{ethLow:.2f}',fill=black,font=fontSmall)
 
     #draw eth logo
-    ethLogo = Image.open(os.path.join(loc, "img/eth.png"))
+    ethLogo = Image.open(os.path.join(loc, "/img/eth.png"))
     out.paste(ethLogo,(209,0))
 
     #draw weather
