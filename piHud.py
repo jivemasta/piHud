@@ -19,16 +19,21 @@ if linux:
     from inky import InkyWHAT
 
 #setup of debug logging
-logging.basicConfig(level=logging.DEBUG,format='[%(asctime)s][%(levelname)s] (%(threadName)-10s) %(message)s',)
+logLevel = logging.ERROR
+logging.basicConfig(level=logLevel,format='[%(asctime)s][%(levelname)s] (%(threadName)-10s) %(message)s',filename='log.log',filemode='w')
 
+#Variables for data
 ticks = 0
 btcPrice = {}
 ethPrice = {}
 tindieOrders = []
 weather = {}
+
+#Settings from config file
 tindieApiUser = ''
 tindieApiKey = ''
 weatherApiKey = ''
+updateInterval = 1 #in minutes
 
 #get the config file from the same directory as the script file
 loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -42,15 +47,18 @@ def GetSettingsFile():
     global tindieApiUser
     global tindieApiKey
     global weatherApiKey
+    global updateInterval
 
     #open the config file and read the private keys
     f = open(os.path.join(loc,"config.cfg"), "r")
     fileStr = f.read()
     settings = json.loads(fileStr)
 
+    #load the settings
     tindieApiUser = settings['tindieApiUser']
     tindieApiKey = settings['tindieApiKey']
     weatherApiKey = settings['weatherApiKey']
+    updateInterval = settings['updateInterval']
 
 def GetCryptoPrice():
     #get bitcoin price data from gemini API, can handle up to 1 call per second, but we won't update that fast
@@ -60,19 +68,24 @@ def GetCryptoPrice():
     global ethPrice
 
     #If we ever want to change which crypto to get. V2?
-    symbol = 'BTCUSD'
-
     #get ticker data, gets data for the last 24 hours. Open, close, high, low. Close is most current price
+    symbol = 'BTCUSD'
     cryptoApiUrl = f"https://api.gemini.com/v2/ticker/{symbol}"
-    cryptoResponse = requests.get(cryptoApiUrl)
-    btcPrice = cryptoResponse.json()
+
+    try:
+        cryptoResponse = requests.get(cryptoApiUrl)
+        btcPrice = cryptoResponse.json()
+    except Exception as err:
+        logging.error('Error getting btcPrice' + err)
 
     symbol = 'ETHUSD'
-
     cryptoApiUrl = f"https://api.gemini.com/v2/ticker/{symbol}"
-    cryptoResponse = requests.get(cryptoApiUrl)
-    ethPrice = cryptoResponse.json()
 
+    try:
+        cryptoResponse = requests.get(cryptoApiUrl)
+        ethPrice = cryptoResponse.json()
+    except Exception as err:
+        logging.error('Error getting ethPrice' + err)
 
     logging.debug('Done Getting Crypto Price')
 
@@ -197,7 +210,7 @@ def RenderImage():
 
     #draw bitcoin data
     #bitcoin price will be red if current price is lower than the open, and black if higher than open
-    draw.text((32,0),f'{btcClose:.2f}',fill=black if btcClose > btcOpen else red,font=fontLarge)
+    draw.text((41,0),f'{btcClose:.2f}',fill=black if btcClose > btcOpen else red,font=fontLarge)
     draw.text((5,32),f'Open:{btcOpen:.2f}',fill=black,font=fontSmall)
     draw.text((5,48),f'High:{btcHigh:.2f}',fill=black,font=fontSmall)
     draw.text((5,64),f'Low:{btcLow:.2f}',fill=black,font=fontSmall)
@@ -227,7 +240,7 @@ def RenderImage():
     #draw weather
     temp = weather['current']['temp']
     condition = weather['current']['weather'][0]['description']
-    draw.text((0,80),f'Temp: {temp} | {condition}',fill=black,font=fontLarge)
+    draw.text((0,80),f'{temp}°F {condition}',fill=black,font=fontLarge)
 
     #get unshipped orders and print each one out
     unshippedOrders = 0
@@ -262,4 +275,4 @@ while(1):
     RenderImage()
 
     #update at a set interval
-    time.sleep(60)
+    time.sleep(60 * updateInterval)
